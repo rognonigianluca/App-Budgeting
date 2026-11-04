@@ -8,7 +8,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Cassa">
-<meta name="theme-color" content="#34c759">
+<meta name="theme-color" content="#d6cfc3">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="manifest" href="manifest.webmanifest">
 <style>
@@ -26,7 +26,7 @@ input,select,textarea{width:100%;font:inherit;color:var(--tx);background:var(--b
 textarea{min-height:90px;font-size:13px}
 .row{display:flex;gap:8px}.row>*{flex:1}
 .btn{display:block;width:100%;min-height:54px;border:0;border-radius:14px;background:var(--ac);color:#fff;font:600 17px inherit;font-family:inherit;margin-top:12px}
-.btn.g{background:var(--g)}.btn.s{background:var(--bg);color:var(--ac);border:1px solid var(--ln)}.btn.d{background:var(--bg);color:var(--r);border:1px solid var(--ln)}
+.btn.g{background:var(--g);color:#fff}.btn.s{background:var(--bg);color:var(--ac);border:1px solid var(--ln)}.btn.d{background:var(--bg);color:var(--r);border:1px solid var(--ln)}
 .btn.sm{min-height:44px;font-size:15px;margin-top:0}
 .g{color:var(--g)}.r{color:var(--r)}.mu{color:var(--mu)}
 .big{font-size:40px;font-weight:700;letter-spacing:-1px}
@@ -85,8 +85,28 @@ nav.tabs button span{display:block;font-size:22px}nav.tabs button.on{color:var(-
 <h1>Mese</h1>
 <div class="nav"><button id="mp">‹</button><b id="mlab"></b><button id="mn">›</button></div>
 <div class="grid" id="mst"></div>
+<h2>Budget del mese</h2>
+<div class="card" id="bud"></div>
 <h2>Netto giornaliero</h2>
 <div class="card" id="chart"></div>
+<h2>Ultimi 6 mesi (dopo le fisse)</h2>
+<div class="card" id="trend"></div>
+</section>
+
+<section class="v" id="v-fisse">
+<h1>Fisse</h1>
+<div class="card net"><small id="fmlab"></small><div class="big r" id="ftot">0,00 €</div><small>spese fisse del mese</small></div>
+<div class="card" id="flist"></div>
+<h2>Nuova spesa fissa</h2>
+<div class="card">
+<label>Nome</label><input id="fn" placeholder="es. Wi-Fi, ricarica, macchina">
+<label>Importo mensile (€)</label><input id="fa" inputmode="decimal" placeholder="0,00">
+<div class="row"><div><label>Da (mese)</label><input type="month" id="ff"></div><div><label>Fino a (facoltativo)</label><input type="month" id="ft"></div></div>
+<button class="btn g" id="fadd">Aggiungi spesa fissa</button>
+<div class="sub" style="margin-top:10px">Se un importo cambia da un certo mese, imposta la data di fine su quella vecchia e creane una nuova.</div>
+</div>
+<h2>Impostazioni</h2>
+<div class="card"><label>Giorni lavorati al mese (per le stime)</label><input id="wd" inputmode="numeric"></div>
 </section>
 
 <section class="v" id="v-goal">
@@ -106,20 +126,21 @@ nav.tabs button span{display:block;font-size:22px}nav.tabs button.on{color:var(-
 <button class="on" data-t="oggi"><span>✏️</span>Oggi</button>
 <button data-t="giorni"><span>📅</span>Giorni</button>
 <button data-t="mese"><span>📊</span>Mese</button>
+<button data-t="fisse"><span>🧾</span>Fisse</button>
 <button data-t="goal"><span>🎯</span>Goal</button>
 </nav>
 <div id="toast"></div>
 
 <script>
 var $=function(s){return document.querySelector(s)};
-var KEY='cassa.v1',S={days:{},goals:[]},D,M,editing=false;
+var KEY='cassa.v1',S={days:{},goals:[],fixed:[],wd:26},D,M,editing=false;
 var fmt=new Intl.NumberFormat('it-IT',{style:'currency',currency:'EUR'});
 function eur(n){return fmt.format(n||0)}
 function num(v){var s=String(v||'').trim();if(s.indexOf(',')>-1)s=s.replace(/\./g,'').replace(',','.');var n=parseFloat(s);return isNaN(n)?0:Math.round(n*100)/100}
 function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
 function iso(d){var m=d.getMonth()+1,g=d.getDate();return d.getFullYear()+'-'+(m<10?'0':'')+m+'-'+(g<10?'0':'')+g}
 function toast(t){var e=$('#toast');e.textContent=t;e.classList.add('on');setTimeout(function(){e.classList.remove('on')},1800)}
-function load(){try{var r=localStorage.getItem(KEY);if(r){var o=JSON.parse(r);S.days=o.days||{};S.goals=o.goals||[]}}catch(e){}}
+function load(){try{var r=localStorage.getItem(KEY);if(r){var o=JSON.parse(r);S.days=o.days||{};S.goals=o.goals||[];S.fixed=o.fixed||[];S.wd=o.wd||26}}catch(e){}}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S));return true}catch(e){toast('Impossibile salvare i dati');return false}}
 function spent(d){return d.exp.reduce(function(a,e){return a+e.a},0)}
 function netOf(d){return d.inc-spent(d)}
@@ -141,14 +162,14 @@ function drawGiorni(){var ks=Object.keys(S.days).sort().reverse();if(!ks.length)
 $('#dlist').innerHTML=ks.map(function(k){var d=S.days[k],n=netOf(d);return '<div class="it"><div><b>'+dayLabel(k)+'</b><div class="sub"><span class="g">'+eur(d.inc)+'</span> · <span class="r">−'+eur(spent(d))+'</span></div></div><div style="text-align:right"><b class="'+(n<0?'r':'g')+'">'+eur(n)+'</b><div><button class="x" style="color:var(--ac);font-size:15px" data-ed="'+k+'">Modifica</button><button class="x" data-rm="'+k+'">🗑</button></div></div></div>'}).join('')}
 $('#dlist').onclick=function(ev){var e=ev.target.getAttribute('data-ed'),r=ev.target.getAttribute('data-rm');if(e){setDraft(e);show('oggi')}else if(r&&confirm('Eliminare il giorno '+dayLabel(r)+'?')){delete S.days[r];save();drawGiorni()}};
 $('#exp').onclick=function(){var t=JSON.stringify(S);$('#bk').value=t;try{navigator.clipboard.writeText(t).then(function(){toast('Copiato negli appunti')},function(){$('#bk').select();toast('Seleziona e copia il testo')})}catch(e){$('#bk').select();toast('Seleziona e copia il testo')}};
-$('#imp').onclick=function(){try{var o=JSON.parse($('#bk').value);if(!o||typeof o.days!=='object'||!Array.isArray(o.goals))throw 0;if(!confirm('Sostituire i dati attuali con il backup?'))return;S={days:o.days,goals:o.goals};save();drawGiorni();toast('Dati importati')}catch(e){toast('Backup non valido')}};
+$('#imp').onclick=function(){try{var o=JSON.parse($('#bk').value);if(!o||typeof o.days!=='object'||!Array.isArray(o.goals))throw 0;if(!confirm('Sostituire i dati attuali con il backup?'))return;S={days:o.days,goals:o.goals,fixed:o.fixed||[],wd:o.wd||26};save();drawGiorni();toast('Dati importati')}catch(e){toast('Backup non valido')}};
 
 /* MESE */
 function mkey(d){return d.getFullYear()+'-'+(d.getMonth()<9?'0':'')+(d.getMonth()+1)}
 function drawMese(){var p=M.split('-'),y=+p[0],m=+p[1];$('#mlab').textContent=new Date(y,m-1,1).toLocaleDateString('it-IT',{month:'long',year:'numeric'});
 var ks=Object.keys(S.days).filter(function(k){return k.indexOf(M+'-')===0}).sort();var ti=0,ts=0,best=null;ks.forEach(function(k){var d=S.days[k];ti+=d.inc;ts+=spent(d);if(!best||netOf(d)>netOf(S.days[best]))best=k});var net=ti-ts;
 $('#mst').innerHTML='<div class="st"><span>Incassato</span><b class="g">'+eur(ti)+'</b></div><div class="st"><span>Speso</span><b class="r">'+eur(ts)+'</b></div><div class="st"><span>Netto</span><b class="'+(net<0?'r':'g')+'">'+eur(net)+'</b></div><div class="st"><span>Media al giorno</span><b>'+eur(ks.length?net/ks.length:0)+'</b></div><div class="st" style="grid-column:1/3"><span>Giorno migliore</span><b>'+(best?dayLabel(best)+' · <span class="g">'+eur(netOf(S.days[best]))+'</span>':'—')+'</b></div>';
-var n=new Date(y,m,0).getDate(),vals=[],mx=1;for(var i=1;i<=n;i++){var k=M+'-'+(i<10?'0':'')+i,v=S.days[k]?netOf(S.days[k]):null;vals.push(v);if(v!==null&&Math.abs(v)>mx)mx=Math.abs(v)}
+drawBudget(net);drawTrend();var n=new Date(y,m,0).getDate(),vals=[],mx=1;for(var i=1;i<=n;i++){var k=M+'-'+(i<10?'0':'')+i,v=S.days[k]?netOf(S.days[k]):null;vals.push(v);if(v!==null&&Math.abs(v)>mx)mx=Math.abs(v)}
 if(!ks.length){$('#chart').innerHTML='<div class="empty">Nessun dato in questo mese.</div>';return}
 var W=340,H=170,z=H/2,bw=W/n,s='<svg viewBox="0 0 '+W+' '+(H+16)+'" width="100%"><line x1="0" x2="'+W+'" y1="'+z+'" y2="'+z+'" stroke="var(--ln)"/>';
 vals.forEach(function(v,i){if(v===null)return;var h=Math.max(2,Math.abs(v)/mx*(z-6));s+='<rect x="'+(i*bw+1)+'" y="'+(v>=0?z-h:z)+'" width="'+Math.max(2,bw-2)+'" height="'+h+'" rx="2" fill="'+(v>=0?'var(--g)':'var(--r)')+'"/>'});
@@ -158,17 +179,37 @@ function shiftM(d){var p=M.split('-');M=mkey(new Date(+p[0],+p[1]-1+d,1));drawMe
 $('#mp').onclick=function(){shiftM(-1)};$('#mn').onclick=function(){shiftM(1)};
 
 /* GOAL */
-function drawGoal(){var a=avgNet();if(!S.goals.length){$('#glist').innerHTML='<div class="card empty">Nessun obiettivo. Creane uno qui sotto.</div>';return}
+function drawGoal(){var a=avgReal();if(!S.goals.length){$('#glist').innerHTML='<div class="card empty">Nessun obiettivo. Creane uno qui sotto.</div>';return}
 $('#glist').innerHTML=S.goals.map(function(g,i){var pc=g.price>0?Math.min(100,g.saved/g.price*100):0,mis=Math.max(0,g.price-g.saved),done=g.saved>=g.price&&g.price>0;
-var eta=done?'':(a>0?'Di questo passo: circa <b>'+Math.ceil(mis/a)+' giorni</b> di lavoro':'Registra qualche giorno per stimare i tempi');
+var eta=done?'':(a>0?'Di questo passo (dopo le fisse): circa <b>'+Math.ceil(mis/a)+' giorni</b> di lavoro':(Object.keys(S.days).length?'Con le spese fisse la tua media è a zero: così non si accumula':'Registra qualche giorno per stimare i tempi'));
 return '<div class="card '+(done?'done':'')+'"><div class="it" style="border:0;padding:0"><b>'+esc(g.name)+(done?'<span class="badge">Completato ✓</span>':'')+'</b><button class="x" data-gd="'+i+'">🗑</button></div><div class="sub">'+eur(g.saved)+' di '+eur(g.price)+(g.due?' · entro '+dayLabel(g.due):'')+'</div><div class="bar"><i style="width:'+pc+'%"></i></div><div class="row" style="justify-content:space-between;flex:none"><b>'+Math.floor(pc)+'%</b><span class="mu" style="text-align:right">'+(done?'Obiettivo raggiunto!':'Mancano '+eur(mis))+'</span></div><div class="sub" style="margin-top:6px">'+eta+'</div><button class="btn s sm" style="margin-top:10px;min-height:50px" data-ga="'+i+'">Assegna soldi</button></div>'}).join('')}
 $('#glist').onclick=function(ev){var a=ev.target.getAttribute('data-ga'),d=ev.target.getAttribute('data-gd');
 if(a!==null){var v=prompt('Quanti euro assegni a «'+S.goals[a].name+'»? (negativo per toglierli)');if(v===null)return;var n=num(v);if(!n)return;var g=S.goals[a];g.saved=Math.max(0,Math.round((g.saved+n)*100)/100);save();drawGoal();if(g.saved>=g.price)toast('Obiettivo completato! 🎉')}
 else if(d!==null&&confirm('Eliminare questo goal?')){S.goals.splice(+d,1);save();drawGoal()}};
 $('#gadd').onclick=function(){var n=$('#gn').value.trim(),p=num($('#gp').value);if(!n||p<=0){toast('Inserisci nome e prezzo');return}S.goals.push({name:n,price:p,due:$('#gd').value||'',saved:0});save();$('#gn').value='';$('#gp').value='';$('#gd').value='';drawGoal();toast('Goal creato')};
 
+/* FISSE */
+function ml(k){var q=k.split('-');return new Date(q[0],q[1]-1,1).toLocaleDateString('it-IT',{month:'short',year:'numeric'})}
+function fixedFor(m){return S.fixed.filter(function(f){return f.from<=m&&(!f.to||f.to>=m)})}
+function fixedTot(m){return fixedFor(m).reduce(function(a,f){return a+f.a},0)}
+function monthNet(m){var t=0;Object.keys(S.days).forEach(function(k){if(k.indexOf(m+'-')===0)t+=netOf(S.days[k])});return t}
+function avgReal(){return avgNet()-fixedTot(mkey(new Date()))/S.wd}
+function drawFisse(){var m=mkey(new Date());$('#fmlab').textContent=new Date().toLocaleDateString('it-IT',{month:'long',year:'numeric'});$('#ftot').textContent=eur(fixedTot(m));if(!$('#ff').value)$('#ff').value=m;$('#wd').value=S.wd;
+$('#flist').innerHTML=S.fixed.length?S.fixed.map(function(f,i){var act=f.from<=m&&(!f.to||f.to>=m);return '<div class="it"><div><b>'+esc(f.n)+'</b><div class="sub">'+eur(f.a)+' al mese · da '+ml(f.from)+(f.to?' a '+ml(f.to):'')+(act?'':' · non attiva')+'</div></div><div><button class="x" style="color:var(--ac);font-size:15px" data-fe="'+i+'">Modifica</button><button class="x" data-fd="'+i+'">🗑</button></div></div>'}).join(''):'<div class="empty">Nessuna spesa fissa.<br>Aggiungi Wi-Fi, ricarica, macchina…</div>'}
+$('#fadd').onclick=function(){var n=$('#fn').value.trim(),a=num($('#fa').value),f=$('#ff').value||mkey(new Date()),t=$('#ft').value;if(!n||a<=0){toast('Inserisci nome e importo');return}if(t&&t<f){toast('La fine è prima dell’inizio');return}S.fixed.push({n:n,a:a,from:f,to:t});save();$('#fn').value='';$('#fa').value='';$('#ft').value='';drawFisse();toast('Spesa fissa aggiunta')};
+$('#flist').onclick=function(ev){var e=ev.target.getAttribute('data-fe'),d=ev.target.getAttribute('data-fd');
+if(e!==null){var v=prompt('Nuovo importo mensile per «'+S.fixed[e].n+'» (€)');if(v===null)return;var n=num(v);if(n>0){S.fixed[e].a=n;save();drawFisse()}}
+else if(d!==null&&confirm('Eliminare questa spesa fissa?')){S.fixed.splice(+d,1);save();drawFisse()}};
+$('#wd').onchange=function(){var n=parseInt($('#wd').value,10);S.wd=(n>=1&&n<=31)?n:26;$('#wd').value=S.wd;save()};
+function drawBudget(net){var fx=fixedTot(M),af=net-fx,l=fixedFor(M);
+if(!l.length){$('#bud').innerHTML='<div class="empty">Nessuna spesa fissa in questo mese.<br>Aggiungile nella scheda Fisse.</div>';return}
+var cov=Math.max(0,Math.min(100,net/fx*100));
+$('#bud').innerHTML='<div class="it"><span>Netto del mese</span><b class="'+(net<0?'r':'g')+'">'+eur(net)+'</b></div><div class="it"><span>Spese fisse</span><b class="r">−'+eur(fx)+'</b></div><div class="it"><b>Budget reale</b><b class="'+(af<0?'r':'g')+'" style="font-size:22px">'+eur(af)+'</b></div><div class="bar"><i style="width:'+cov+'%;background:'+(af<0?'var(--r)':'var(--g)')+'"></i></div><div class="sub">'+(af>=0?'Fisse coperte ✓ — ti restano '+eur(af):'Ti mancano '+eur(-af)+' per coprire le fisse')+'</div><div class="sub" style="margin-top:4px">Per coprirle servono circa '+eur(fx/S.wd)+' netti al giorno ('+S.wd+' giorni lavorati)</div><div class="sub" style="margin-top:8px">'+l.map(function(f){return esc(f.n)+' '+eur(f.a)}).join(' · ')+'</div>'}
+function drawTrend(){var p=M.split('-'),rows=[];for(var i=5;i>=0;i--){var k=mkey(new Date(+p[0],+p[1]-1-i,1)),nt=monthNet(k),fx=fixedTot(k);rows.push({k:k,nt:nt,fx:fx,af:nt-fx})}
+$('#trend').innerHTML=rows.map(function(r,i){var dl=i?r.af-rows[i-1].af:null;return '<div class="it"><div><b>'+ml(r.k)+'</b><div class="sub">Netto '+eur(r.nt)+' − fisse '+eur(r.fx)+'</div></div><div style="text-align:right"><b class="'+(r.af<0?'r':'g')+'">'+eur(r.af)+'</b>'+(dl===null?'':'<div class="sub"><span class="'+(dl<0?'r':'g')+'">'+(dl<0?'▼ ':'▲ ')+eur(Math.abs(dl))+'</span></div>')+'</div></div>'}).reverse().join('')}
+
 /* TAB */
-function show(t){document.querySelectorAll('.v').forEach(function(e){e.classList.toggle('on',e.id==='v-'+t)});document.querySelectorAll('nav.tabs button').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-t')===t)});window.scrollTo(0,0);if(t==='giorni')drawGiorni();if(t==='mese')drawMese();if(t==='goal')drawGoal()}
+function show(t){document.querySelectorAll('.v').forEach(function(e){e.classList.toggle('on',e.id==='v-'+t)});document.querySelectorAll('nav.tabs button').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-t')===t)});window.scrollTo(0,0);if(t==='giorni')drawGiorni();if(t==='mese')drawMese();if(t==='goal')drawGoal();if(t==='fisse')drawFisse()}
 document.querySelectorAll('nav.tabs button').forEach(function(b){b.onclick=function(){show(b.getAttribute('data-t'))}});
 
 if('serviceWorker' in navigator){try{navigator.serviceWorker.register('sw.js')}catch(e){}}
