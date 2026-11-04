@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<title>Cassa</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Cassa">
+<meta name="theme-color" content="#34c759">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<style>
+:root{--bg:#f2f2f7;--card:#fff;--tx:#111;--mu:#6e6e73;--ln:#e0e0e5;--g:#1e9e48;--r:#e0352b;--ac:#007aff;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#000;--card:#1c1c1e;--tx:#f5f5f7;--mu:#98989f;--ln:#38383a;--g:#30d158;--r:#ff453a;--ac:#0a84ff;color-scheme:dark}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--tx);font:17px -apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif}
+body{padding-bottom:calc(84px + env(safe-area-inset-bottom,0px))}
+main{max-width:560px;margin:0 auto;padding:12px 16px}
+h1{font-size:32px;margin:8px 0 14px;letter-spacing:-.5px}
+h2{font-size:15px;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;margin:18px 4px 8px;font-weight:600}
+.card{background:var(--card);border-radius:16px;padding:14px;margin-bottom:12px}
+label{display:block;font-size:13px;color:var(--mu);margin:10px 0 4px}
+input,select,textarea{width:100%;font:inherit;color:var(--tx);background:var(--bg);border:1px solid var(--ln);border-radius:12px;padding:13px;min-height:50px;appearance:none;-webkit-appearance:none}
+textarea{min-height:90px;font-size:13px}
+.row{display:flex;gap:8px}.row>*{flex:1}
+.btn{display:block;width:100%;min-height:54px;border:0;border-radius:14px;background:var(--ac);color:#fff;font:600 17px inherit;font-family:inherit;margin-top:12px}
+.btn.g{background:var(--g)}.btn.s{background:var(--bg);color:var(--ac);border:1px solid var(--ln)}.btn.d{background:var(--bg);color:var(--r);border:1px solid var(--ln)}
+.btn.sm{min-height:44px;font-size:15px;margin-top:0}
+.g{color:var(--g)}.r{color:var(--r)}.mu{color:var(--mu)}
+.big{font-size:40px;font-weight:700;letter-spacing:-1px}
+.net{text-align:center;padding:16px}.net small{display:block;color:var(--mu);font-size:13px}
+.it{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:11px 0;border-bottom:1px solid var(--ln)}.it:last-child{border:0}
+.it b{font-weight:600}.sub{font-size:13px;color:var(--mu)}
+.x{background:none;border:0;color:var(--r);font-size:22px;min-width:44px;min-height:44px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.st{background:var(--card);border-radius:14px;padding:12px}.st span{font-size:13px;color:var(--mu);display:block}.st b{font-size:20px}
+.bar{height:14px;background:var(--bg);border-radius:8px;overflow:hidden;margin:10px 0 6px}.bar i{display:block;height:100%;background:var(--ac);border-radius:8px}
+.done .bar i{background:var(--g)}
+.badge{display:inline-block;background:var(--g);color:#fff;border-radius:8px;font-size:12px;padding:2px 8px;margin-left:6px}
+.nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}.nav button{width:56px;min-height:50px;border:0;border-radius:14px;background:var(--card);color:var(--ac);font-size:22px}
+.nav b{font-size:19px;text-transform:capitalize}
+nav.tabs{position:fixed;left:0;right:0;bottom:0;display:flex;background:var(--card);border-top:1px solid var(--ln);padding-bottom:env(safe-area-inset-bottom,0px);z-index:5}
+nav.tabs button{flex:1;border:0;background:none;color:var(--mu);font:600 11px -apple-system,system-ui,sans-serif;min-height:60px;padding:6px 0}
+nav.tabs button span{display:block;font-size:22px}nav.tabs button.on{color:var(--ac)}
+.v{display:none}.v.on{display:block}
+#toast{position:fixed;left:50%;bottom:calc(90px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:#222;color:#fff;padding:10px 16px;border-radius:20px;font-size:14px;opacity:0;transition:.25s;pointer-events:none;z-index:9}
+#toast.on{opacity:1}
+.empty{text-align:center;color:var(--mu);padding:24px 0}
+</style>
+</head>
+<body>
+<main>
+<section class="v on" id="v-oggi">
+<h1>Oggi</h1>
+<div class="card">
+<label>Data</label><input type="date" id="date">
+<label>Incasso totale (€)</label><input id="inc" inputmode="decimal" placeholder="0,00">
+</div>
+<h2>Spese del giorno</h2>
+<div class="card">
+<div id="elist"></div>
+<label>Descrizione</label><input id="edesc" placeholder="es. benzina">
+<div class="row"><div><label>Importo (€)</label><input id="eamt" inputmode="decimal" placeholder="0,00"></div>
+<div><label>Categoria</label><select id="ecat"><option>Trasporti</option><option>Cibo</option><option>Altro</option></select></div></div>
+<button class="btn s" id="eadd">+ Aggiungi spesa</button>
+</div>
+<div class="card net"><small>Netto del giorno</small><div class="big" id="net">0,00 €</div></div>
+<button class="btn g" id="save">Salva giorno</button>
+<button class="btn d" id="clear" style="display:none">Annulla modifica</button>
+</section>
+
+<section class="v" id="v-giorni">
+<h1>Giorni</h1>
+<div class="card" id="dlist"></div>
+<h2>Backup</h2>
+<div class="card">
+<textarea id="bk" placeholder="I dati in JSON compaiono qui. Incolla qui un backup per importarlo."></textarea>
+<div class="row" style="margin-top:10px"><button class="btn s sm" id="exp">Esporta (copia)</button><button class="btn s sm" id="imp">Importa</button></div>
+</div>
+</section>
+
+<section class="v" id="v-mese">
+<h1>Mese</h1>
+<div class="nav"><button id="mp">‹</button><b id="mlab"></b><button id="mn">›</button></div>
+<div class="grid" id="mst"></div>
+<h2>Netto giornaliero</h2>
+<div class="card" id="chart"></div>
+</section>
+
+<section class="v" id="v-goal">
+<h1>Goal</h1>
+<div id="glist"></div>
+<h2>Nuovo obiettivo</h2>
+<div class="card">
+<label>Nome</label><input id="gn" placeholder="es. Casco nuovo">
+<label>Prezzo (€)</label><input id="gp" inputmode="decimal" placeholder="0,00">
+<label>Scadenza (facoltativa)</label><input type="date" id="gd">
+<button class="btn g" id="gadd">Crea goal</button>
+</div>
+</section>
+</main>
+
+<nav class="tabs">
+<button class="on" data-t="oggi"><span>✏️</span>Oggi</button>
+<button data-t="giorni"><span>📅</span>Giorni</button>
+<button data-t="mese"><span>📊</span>Mese</button>
+<button data-t="goal"><span>🎯</span>Goal</button>
+</nav>
+<div id="toast"></div>
+
+<script>
+var $=function(s){return document.querySelector(s)};
+var KEY='cassa.v1',S={days:{},goals:[]},D,M,editing=false;
+var fmt=new Intl.NumberFormat('it-IT',{style:'currency',currency:'EUR'});
+function eur(n){return fmt.format(n||0)}
+function num(v){var s=String(v||'').trim();if(s.indexOf(',')>-1)s=s.replace(/\./g,'').replace(',','.');var n=parseFloat(s);return isNaN(n)?0:Math.round(n*100)/100}
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function iso(d){var m=d.getMonth()+1,g=d.getDate();return d.getFullYear()+'-'+(m<10?'0':'')+m+'-'+(g<10?'0':'')+g}
+function toast(t){var e=$('#toast');e.textContent=t;e.classList.add('on');setTimeout(function(){e.classList.remove('on')},1800)}
+function load(){try{var r=localStorage.getItem(KEY);if(r){var o=JSON.parse(r);S.days=o.days||{};S.goals=o.goals||[]}}catch(e){}}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S));return true}catch(e){toast('Impossibile salvare i dati');return false}}
+function spent(d){return d.exp.reduce(function(a,e){return a+e.a},0)}
+function netOf(d){return d.inc-spent(d)}
+function dayLabel(k){var p=k.split('-');return new Date(p[0],p[1]-1,p[2]).toLocaleDateString('it-IT',{weekday:'short',day:'numeric',month:'short',year:'numeric'})}
+function avgNet(){var k=Object.keys(S.days);if(!k.length)return 0;return k.reduce(function(a,x){return a+netOf(S.days[x])},0)/k.length}
+
+/* OGGI */
+function setDraft(date){var d=S.days[date];D={date:date,exp:d?d.exp.map(function(e){return{d:e.d,c:e.c,a:e.a}}):[]};$('#date').value=date;$('#inc').value=d&&d.inc?String(d.inc).replace('.',','):'';editing=!!d;$('#clear').style.display=editing?'block':'none';$('#save').textContent=editing?'Aggiorna giorno':'Salva giorno';drawOggi()}
+function drawOggi(){var h='';D.exp.forEach(function(e,i){h+='<div class="it"><div><b>'+esc(e.d||'Spesa')+'</b><div class="sub">'+esc(e.c)+'</div></div><div class="r">−'+eur(e.a)+'</div><button class="x" data-del="'+i+'">✕</button></div>'});$('#elist').innerHTML=h;var n=num($('#inc').value)-D.exp.reduce(function(a,e){return a+e.a},0);var el=$('#net');el.textContent=eur(n);el.className='big '+(n<0?'r':'g')}
+$('#inc').oninput=drawOggi;
+$('#date').onchange=function(){if($('#date').value)setDraft($('#date').value)};
+$('#eadd').onclick=function(){var a=num($('#eamt').value);if(a<=0){toast('Inserisci un importo');return}D.exp.push({d:$('#edesc').value.trim(),c:$('#ecat').value,a:a});$('#edesc').value='';$('#eamt').value='';drawOggi()};
+$('#elist').onclick=function(ev){var i=ev.target.getAttribute('data-del');if(i!==null){D.exp.splice(+i,1);drawOggi()}};
+$('#save').onclick=function(){var date=$('#date').value;if(!date){toast('Scegli una data');return}var inc=num($('#inc').value);if(inc<=0&&!D.exp.length){toast('Niente da salvare');return}S.days[date]={inc:inc,exp:D.exp};if(save()){toast('Giorno salvato');setDraft(iso(new Date()));show('giorni')}};
+$('#clear').onclick=function(){setDraft(iso(new Date()))};
+
+/* GIORNI */
+function drawGiorni(){var ks=Object.keys(S.days).sort().reverse();if(!ks.length){$('#dlist').innerHTML='<div class="empty">Nessun giorno registrato.<br>Inizia dalla scheda Oggi.</div>';return}
+$('#dlist').innerHTML=ks.map(function(k){var d=S.days[k],n=netOf(d);return '<div class="it"><div><b>'+dayLabel(k)+'</b><div class="sub"><span class="g">'+eur(d.inc)+'</span> · <span class="r">−'+eur(spent(d))+'</span></div></div><div style="text-align:right"><b class="'+(n<0?'r':'g')+'">'+eur(n)+'</b><div><button class="x" style="color:var(--ac);font-size:15px" data-ed="'+k+'">Modifica</button><button class="x" data-rm="'+k+'">🗑</button></div></div></div>'}).join('')}
+$('#dlist').onclick=function(ev){var e=ev.target.getAttribute('data-ed'),r=ev.target.getAttribute('data-rm');if(e){setDraft(e);show('oggi')}else if(r&&confirm('Eliminare il giorno '+dayLabel(r)+'?')){delete S.days[r];save();drawGiorni()}};
+$('#exp').onclick=function(){var t=JSON.stringify(S);$('#bk').value=t;try{navigator.clipboard.writeText(t).then(function(){toast('Copiato negli appunti')},function(){$('#bk').select();toast('Seleziona e copia il testo')})}catch(e){$('#bk').select();toast('Seleziona e copia il testo')}};
+$('#imp').onclick=function(){try{var o=JSON.parse($('#bk').value);if(!o||typeof o.days!=='object'||!Array.isArray(o.goals))throw 0;if(!confirm('Sostituire i dati attuali con il backup?'))return;S={days:o.days,goals:o.goals};save();drawGiorni();toast('Dati importati')}catch(e){toast('Backup non valido')}};
+
+/* MESE */
+function mkey(d){return d.getFullYear()+'-'+(d.getMonth()<9?'0':'')+(d.getMonth()+1)}
+function drawMese(){var p=M.split('-'),y=+p[0],m=+p[1];$('#mlab').textContent=new Date(y,m-1,1).toLocaleDateString('it-IT',{month:'long',year:'numeric'});
+var ks=Object.keys(S.days).filter(function(k){return k.indexOf(M+'-')===0}).sort();var ti=0,ts=0,best=null;ks.forEach(function(k){var d=S.days[k];ti+=d.inc;ts+=spent(d);if(!best||netOf(d)>netOf(S.days[best]))best=k});var net=ti-ts;
+$('#mst').innerHTML='<div class="st"><span>Incassato</span><b class="g">'+eur(ti)+'</b></div><div class="st"><span>Speso</span><b class="r">'+eur(ts)+'</b></div><div class="st"><span>Netto</span><b class="'+(net<0?'r':'g')+'">'+eur(net)+'</b></div><div class="st"><span>Media al giorno</span><b>'+eur(ks.length?net/ks.length:0)+'</b></div><div class="st" style="grid-column:1/3"><span>Giorno migliore</span><b>'+(best?dayLabel(best)+' · <span class="g">'+eur(netOf(S.days[best]))+'</span>':'—')+'</b></div>';
+var n=new Date(y,m,0).getDate(),vals=[],mx=1;for(var i=1;i<=n;i++){var k=M+'-'+(i<10?'0':'')+i,v=S.days[k]?netOf(S.days[k]):null;vals.push(v);if(v!==null&&Math.abs(v)>mx)mx=Math.abs(v)}
+if(!ks.length){$('#chart').innerHTML='<div class="empty">Nessun dato in questo mese.</div>';return}
+var W=340,H=170,z=H/2,bw=W/n,s='<svg viewBox="0 0 '+W+' '+(H+16)+'" width="100%"><line x1="0" x2="'+W+'" y1="'+z+'" y2="'+z+'" stroke="var(--ln)"/>';
+vals.forEach(function(v,i){if(v===null)return;var h=Math.max(2,Math.abs(v)/mx*(z-6));s+='<rect x="'+(i*bw+1)+'" y="'+(v>=0?z-h:z)+'" width="'+Math.max(2,bw-2)+'" height="'+h+'" rx="2" fill="'+(v>=0?'var(--g)':'var(--r)')+'"/>'});
+[1,Math.ceil(n/2),n].forEach(function(d){s+='<text x="'+((d-1)*bw+bw/2)+'" y="'+(H+12)+'" font-size="10" fill="var(--mu)" text-anchor="middle">'+d+'</text>'});
+$('#chart').innerHTML=s+'</svg>'}
+function shiftM(d){var p=M.split('-');M=mkey(new Date(+p[0],+p[1]-1+d,1));drawMese()}
+$('#mp').onclick=function(){shiftM(-1)};$('#mn').onclick=function(){shiftM(1)};
+
+/* GOAL */
+function drawGoal(){var a=avgNet();if(!S.goals.length){$('#glist').innerHTML='<div class="card empty">Nessun obiettivo. Creane uno qui sotto.</div>';return}
+$('#glist').innerHTML=S.goals.map(function(g,i){var pc=g.price>0?Math.min(100,g.saved/g.price*100):0,mis=Math.max(0,g.price-g.saved),done=g.saved>=g.price&&g.price>0;
+var eta=done?'':(a>0?'Di questo passo: circa <b>'+Math.ceil(mis/a)+' giorni</b> di lavoro':'Registra qualche giorno per stimare i tempi');
+return '<div class="card '+(done?'done':'')+'"><div class="it" style="border:0;padding:0"><b>'+esc(g.name)+(done?'<span class="badge">Completato ✓</span>':'')+'</b><button class="x" data-gd="'+i+'">🗑</button></div><div class="sub">'+eur(g.saved)+' di '+eur(g.price)+(g.due?' · entro '+dayLabel(g.due):'')+'</div><div class="bar"><i style="width:'+pc+'%"></i></div><div class="row" style="justify-content:space-between;flex:none"><b>'+Math.floor(pc)+'%</b><span class="mu" style="text-align:right">'+(done?'Obiettivo raggiunto!':'Mancano '+eur(mis))+'</span></div><div class="sub" style="margin-top:6px">'+eta+'</div><button class="btn s sm" style="margin-top:10px;min-height:50px" data-ga="'+i+'">Assegna soldi</button></div>'}).join('')}
+$('#glist').onclick=function(ev){var a=ev.target.getAttribute('data-ga'),d=ev.target.getAttribute('data-gd');
+if(a!==null){var v=prompt('Quanti euro assegni a «'+S.goals[a].name+'»? (negativo per toglierli)');if(v===null)return;var n=num(v);if(!n)return;var g=S.goals[a];g.saved=Math.max(0,Math.round((g.saved+n)*100)/100);save();drawGoal();if(g.saved>=g.price)toast('Obiettivo completato! 🎉')}
+else if(d!==null&&confirm('Eliminare questo goal?')){S.goals.splice(+d,1);save();drawGoal()}};
+$('#gadd').onclick=function(){var n=$('#gn').value.trim(),p=num($('#gp').value);if(!n||p<=0){toast('Inserisci nome e prezzo');return}S.goals.push({name:n,price:p,due:$('#gd').value||'',saved:0});save();$('#gn').value='';$('#gp').value='';$('#gd').value='';drawGoal();toast('Goal creato')};
+
+/* TAB */
+function show(t){document.querySelectorAll('.v').forEach(function(e){e.classList.toggle('on',e.id==='v-'+t)});document.querySelectorAll('nav.tabs button').forEach(function(b){b.classList.toggle('on',b.getAttribute('data-t')===t)});window.scrollTo(0,0);if(t==='giorni')drawGiorni();if(t==='mese')drawMese();if(t==='goal')drawGoal()}
+document.querySelectorAll('nav.tabs button').forEach(function(b){b.onclick=function(){show(b.getAttribute('data-t'))}});
+
+if('serviceWorker' in navigator){try{navigator.serviceWorker.register('sw.js')}catch(e){}}
+
+load();M=mkey(new Date());setDraft(iso(new Date()));
+</script>
+</body>
+</html>
